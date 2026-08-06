@@ -28,6 +28,13 @@ process.env.AI_API_KEY = env.AI_API_KEY;
 process.env.AI_BASE_URL = env.AI_BASE_URL;
 process.env.TRANSCRIPTION_MODEL = env.TRANSCRIPTION_MODEL;
 
+const LOG_FILE = "/tmp/fixture-build.log";
+function log(msg: string) {
+  const line = `[${new Date().toISOString().slice(11, 19)}] ${msg}\n`;
+  fs.appendFileSync(LOG_FILE, line);
+  process.stdout.write(line);
+}
+
 const {
   buildWindowRanges,
   stitchWindowResults,
@@ -37,7 +44,7 @@ const {
   geminiNativeBase,
 } = await import("../lib/worker/transcription");
 
-const FFMPEG = "/Users/saiaathishkarthik/Desktop/Pactra/node_modules/ffmpeg-static/ffmpeg";
+const FFMPEG = path.resolve("node_modules/ffmpeg-static/ffmpeg");
 const OUT_DIR = path.resolve("lib/worker/transcript-fixtures");
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -49,30 +56,43 @@ function sha256(file: string): string {
   return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
 
-/** Waits until the free-tier bucket can accept an audio request. */
+/**
+ * The free-tier audio bucket refills ~1 unit per minute and probes consume
+ * the refill as fast as it arrives, so NO probing — just fixed pacing before
+ * each window; failures are retried patiently in the window loop below.
+ */
 async function waitForQuota(): Promise<void> {
-  for (;;) {
-    const ok = await probe();
-    if (ok) return;
-    await new Promise((r) => setTimeout(r, 45_000));
-  }
+  await new Promise((r) => setTimeout(r, 100_000));
 }
 
-/** Tiny audio request; returns true when accepted. */
+/** Tiny AUDIO request; returns true when accepted (audio has its own bucket). */
 async function probe(): Promise<boolean> {
   try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 15000);
+    const b64 = fs.readFileSync("/tmp/probe.wav").toString("base64");
     const resp = await fetch(`${BASE}/models/${MODEL}:generateContent?key=${KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: "ok" }] }],
-        generationConfig: { temperature: 0 },
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inline_data: { mime_type: "audio/wav", data: b64 } },
+              { text: 'Transcribe. JSON: {"segments":[{"start":0,"end":1,"text":"..."}]}' },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0, responseMimeType: "application/json" },
       }),
+      signal: ctl.signal,
     });
+    clearTimeout(timer);
     if (resp.ok) return true;
     const body = await resp.text();
     const m = body.match(/retry in ([0-9.]+)s/i);
-    console.log(`  (quota: retry in ${m ? m[1] + "s" : "?"})`);
+    log(`quota: retry in ${m ? m[1] + "s" : "?"}`);
     return false;
   } catch {
     return false;
@@ -82,7 +102,7 @@ async function probe(): Promise<boolean> {
 async function buildFixture(videoPath: string) {
   const sha = sha256(videoPath);
   const label = path.basename(videoPath);
-  console.log(`\n=== ${label} (${sha.slice(0, 12)}…) ===`);
+  log(`=== ${label} (${sha.slice(0, 12)}…) ===`);
 
   // extract audio via bash (bun cannot spawn ffmpeg directly in this sandbox)
   const work = fs.mkdtempSync("/tmp/pactra-fixture-");
@@ -94,24 +114,34 @@ async function buildFixture(videoPath: string) {
   });
 
   const durationS = await wavDurationSeconds(audioPath);
-  console.log(`duration: ${durationS?.toFixed(1)}s`);
+  log(`duration: ${durationS?.toFixed(1)}s`);
   if (durationS === null || durationS <= 40) throw new Error("unsupported duration");
   const ranges = buildWindowRanges(durationS);
-  console.log(`windows: ${ranges.length}`);
+  log(`windows: ${ranges.length}`);
 
   const results: Awaited<ReturnType<typeof transcribeGeminiWindow>>[] = [];
   for (let i = 0; i < ranges.length; i++) {
     await waitForQuota();
     const wav = path.join(work, `win-${i}.wav`);
     await sliceWav(audioPath, ranges[i].start, ranges[i].end, wav);
-    const t0 = Date.now();
-    results[i] = await transcribeGeminiWindow(BASE, MODEL, KEY, wav, ranges[i].end - ranges[i].start);
-    console.log(`  window ${i} [${ranges[i].start}-${ranges[i].end}): ${results[i].flatMap((s) => s.words).length} words in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
+    let segs: Awaited<ReturnType<typeof transcribeGeminiWindow>> | null = null;
+    for (let attempt = 1; attempt <= 10 && !segs; attempt++) {
+      try {
+        const t0 = Date.now();
+        segs = await transcribeGeminiWindow(BASE, MODEL, KEY, wav, ranges[i].end - ranges[i].start);
+        log(`window ${i} [${ranges[i].start}-${ranges[i].end}): ${segs.flatMap((s) => s.words).length} words in ${((Date.now() - t0) / 1000).toFixed(0)}s`);
+      } catch (err) {
+        log(`window ${i} attempt ${attempt}/10 failed: ${(err as Error).message.slice(0, 70)} — waiting 120s`);
+        await new Promise((r) => setTimeout(r, 120_000));
+      }
+    }
+    if (!segs) throw new Error(`window ${i} failed after retries`);
+    results[i] = segs;
     fs.rmSync(wav, { force: true });
   }
 
   const segments = stitchWindowResults(results, ranges);
-  console.log(`stitched: ${segments.length} segments, ${segments.flatMap((s) => s.words).length} words`);
+  log(`stitched: ${segments.length} segments, ${segments.flatMap((s) => s.words).length} words`);
 
   const fixture = {
     videoSha256: sha,
@@ -123,7 +153,7 @@ async function buildFixture(videoPath: string) {
   };
   const outPath = path.join(OUT_DIR, `${sha}.json`);
   fs.writeFileSync(outPath, JSON.stringify(fixture));
-  console.log(`fixture written: ${outPath} (${(fs.statSync(outPath).size / 1024).toFixed(0)} KB)`);
+  log(`fixture written: ${outPath} (${(fs.statSync(outPath).size / 1024).toFixed(0)} KB)`);
   fs.rmSync(work, { recursive: true, force: true });
   return { sha, file: outPath };
 }
@@ -143,5 +173,5 @@ const importLines = built
   .map((b) => `import failingFixture from "./transcript-fixtures/${b.sha}.json";`)
   .join("\n");
 // Hmm — need distinct names per fixture; regenerate below.
-console.log("\nFixtures built:", built.map((b) => `${b.sha.slice(0, 12)} → ${path.basename(b.file)}`).join("\n"));
+log(`Fixtures built: ${built.map((b) => `${b.sha.slice(0, 12)} -> ${path.basename(b.file)}`).join(", ")}`);
 console.log("REGISTER: add imports + entries to lib/worker/transcript-fixtures.ts");
