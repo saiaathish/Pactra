@@ -1,0 +1,61 @@
+rules_version = '2';
+
+// Pactra storage security rules.
+// Layout: users/{firebaseUid}/...
+// - Owners may read/write their own briefs, brand assets, and videos
+//   (with file-size and content-type limits).
+// - Evidence clips and reports are BACKEND-WRITE-ONLY (service account has
+//   request.auth.token.admin == true); owners may read them.
+// - No public wildcard rules.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+    function isBackend() {
+      return request.auth != null && request.auth.token.admin == true;
+    }
+    function sizeOk(maxBytes) {
+      return request.resource.size <= maxBytes;
+    }
+    function typeIn(typesRegex) {
+      return request.resource.contentType.matches(typesRegex);
+    }
+
+    // --- Sponsor briefs (creator uploads, 20 MB) ---------------------------
+    match /users/{uid}/sponsors/{sponsorId}/briefs/{briefVersionId}/{filename} {
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid)
+        && sizeOk(20 * 1024 * 1024)
+        && typeIn('application/pdf|text/plain|application/vnd\\.openxmlformats-officedocument\\.wordprocessingml\\.document');
+    }
+
+    // --- Brand assets / logos (creator uploads, 10 MB) ----------------------
+    match /users/{uid}/campaigns/{campaignId}/brand-assets/{assetId}/{filename} {
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid)
+        && sizeOk(10 * 1024 * 1024)
+        && typeIn('image/png|image/jpeg|image/webp');
+    }
+
+    // --- Rough-cut videos (creator uploads, 2 GB) ---------------------------
+    match /users/{uid}/campaigns/{campaignId}/videos/{videoAssetId}/{filename} {
+      allow read: if isOwner(uid);
+      allow write: if isOwner(uid)
+        && sizeOk(2 * 1024 * 1024 * 1024)
+        && typeIn('video/mp4|video/quicktime|video/webm');
+    }
+
+    // --- Evidence clips + reports (backend writes, owner reads) -------------
+    match /users/{uid}/analysis/{analysisRunId}/{allPaths=**} {
+      allow read: if isOwner(uid);
+      allow write: if isBackend();
+    }
+
+    // --- Everything else under a user path is denied by default -------------
+    match /users/{uid}/{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+file '/Users/saiaathishkarthik/Desktop/Pactra/scripts/demo-media/work3/fA.wav'
+file '/Users/saiaathishkarthik/Desktop/Pactra/scripts/demo-media/work3/fB.wav'
+file '/Users/saiaathishkarthik/Desktop/Pactra/scripts/demo-media/work3/fC.wav'
+file '/Users/saiaathishkarthik/Desktop/Pactra/scripts/demo-media/work3/fD1.wav'
+file '/Users/saiaathishkarthik/Desktop/Pactra/scripts/demo-media/work3/fD2.wav'
+file '/Users/saiaathishkarthik/Desktop/Pactra/scripts/demo-media/work3/tail.wav'

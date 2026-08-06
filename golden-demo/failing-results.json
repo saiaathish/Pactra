@@ -1,0 +1,96 @@
+{
+  "tag": "failing-prod",
+  "runId": "6a743e142abf117fa786153e",
+  "status": "failed",
+  "counts": {
+    "passed": 4,
+    "failed": 3,
+    "uncertain": 0,
+    "humanReview": 0,
+    "notTestable": 0
+  },
+  "perReq": [
+    {
+      "req": "Integration starts after 00:20",
+      "type": "segment_placement",
+      "status": "fail",
+      "confidence": 1,
+      "explanation": "Detected sponsor segment starts at 15.7s — outside the allowed window.",
+      "evidenceTs": [
+        "15.7–75.7s",
+        "15.7–75.7s"
+      ],
+      "clips": 1
+    },
+    {
+      "req": "Segment lasts 35–50 seconds",
+      "type": "segment_duration",
+      "status": "fail",
+      "confidence": 1,
+      "explanation": "Segment duration 60.0s is outside 35–50s.",
+      "evidenceTs": [
+        "15.7–75.7s",
+        "15.7–75.7s"
+      ],
+      "clips": 1
+    },
+    {
+      "req": "Must say '30-day free trial'",
+      "type": "required_phrase",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "Exact phrase found at 24.9s.",
+      "evidenceTs": [
+        "24.9–25.9s"
+      ],
+      "clips": 0
+    },
+    {
+      "req": "Must mention code PACTRA20",
+      "type": "required_phrase",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "Exact phrase found at 30.1s.",
+      "evidenceTs": [
+        "30.1–31.1s"
+      ],
+      "clips": 0
+    },
+    {
+      "req": "Must disclose sponsorship before the pitch",
+      "type": "spoken_disclosure",
+      "status": "pass",
+      "confidence": 0.9,
+      "explanation": "Spoken disclosure detected (\"sponsored\") at 15.7s.",
+      "evidenceTs": [
+        "15.7–16.2s"
+      ],
+      "clips": 0
+    },
+    {
+      "req": "Must not say 'guaranteed results'",
+      "type": "forbidden_claim",
+      "status": "fail",
+      "confidence": 1,
+      "explanation": "Forbidden phrase \"guaranteed results\" spoken at 33.7s.",
+      "evidenceTs": [
+        "33.7–34.7s",
+        "33.7–34.7s"
+      ],
+      "clips": 1
+    },
+    {
+      "req": "Description must include the correct URL",
+      "type": "description_url",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "URL https://pactra.app/trial present in description.",
+      "evidenceTs": [],
+      "clips": 0
+    }
+  ],
+  "videoSha256": "8de0969661342fdbf29252e63e34ac0ee8669130253ed3074182464093271cbb",
+  "videoSize": 1274771,
+  "latencyS": 76.502,
+  "totalS": 88.077
+}

@@ -1,0 +1,102 @@
+{
+  "engineVersion": "0.2.0",
+  "briefSha256": "24f1093c562b09e3e0254a7879e233101ea3b4dcc3c2c9b5db6c082c6ce4a0a6",
+  "videoSha256": "27052a3899003ca95d68d04a67d99ff4901b243979fdbc00a343c2e49a9720de",
+  "descriptionSha256": "a631df5a2ecab4cc59c9c7a1eaa3095cf017a881a8ca3e04ed4f5cfe80092bf2",
+  "tests": {
+    "passed": 7,
+    "failed": 0,
+    "uncertain": 0,
+    "humanReview": 0
+  },
+  "results": [
+    {
+      "requirementId": "6a743eab2030c8eb19d0cae4",
+      "requirement": "Integration starts after 00:20",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "Detected sponsor segment starts at 68.2s within the allowed window."
+    },
+    {
+      "requirementId": "6a743eab2030c8eb19d0cae5",
+      "requirement": "Segment lasts 35–50 seconds",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "Segment duration 35.9s is within 35–50s."
+    },
+    {
+      "requirementId": "6a743eab2030c8eb19d0cae6",
+      "requirement": "Must say '30-day free trial'",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "Exact phrase found at 76.0s."
+    },
+    {
+      "requirementId": "6a743eab2030c8eb19d0cae7",
+      "requirement": "Must mention code PACTRA20",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "Exact phrase found at 81.1s."
+    },
+    {
+      "requirementId": "6a743eab2030c8eb19d0cae8",
+      "requirement": "Must disclose sponsorship before the pitch",
+      "status": "pass",
+      "confidence": 0.9,
+      "explanation": "Spoken disclosure detected (\"sponsored\") at 68.2s."
+    },
+    {
+      "requirementId": "6a743eab2030c8eb19d0cae9",
+      "requirement": "Must not say 'guaranteed results'",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "Forbidden phrase \"guaranteed results\" not spoken."
+    },
+    {
+      "requirementId": "6a743eab2030c8eb19d0caea",
+      "requirement": "Description must include the correct URL",
+      "status": "pass",
+      "confidence": 1,
+      "explanation": "URL https://pactra.app/trial present in description."
+    }
+  ],
+  "evidence": [
+    {
+      "type": "transcript",
+      "startSeconds": 68.2,
+      "endSeconds": 104.1,
+      "storagePath": null
+    },
+    {
+      "type": "transcript",
+      "startSeconds": 68.2,
+      "endSeconds": 104.1,
+      "storagePath": null
+    },
+    {
+      "type": "transcript",
+      "startSeconds": 76,
+      "endSeconds": 77,
+      "storagePath": null
+    },
+    {
+      "type": "transcript",
+      "startSeconds": 81.06,
+      "endSeconds": 81.8,
+      "storagePath": null
+    },
+    {
+      "type": "transcript",
+      "startSeconds": 68.2,
+      "endSeconds": 68.69,
+      "storagePath": null
+    },
+    {
+      "type": "description_span",
+      "startSeconds": null,
+      "endSeconds": null,
+      "storagePath": null
+    }
+  ],
+  "generatedAt": "2026-08-06T07:59:59.274Z"
+}

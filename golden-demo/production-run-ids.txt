@@ -1,0 +1,13 @@
+Pactra golden demo — production run IDs (pactra-flame.vercel.app, 2026-08-06)
+
+API-driven golden runs (scripts/run-golden-demo.mts):
+failing-prod  6a743e142abf117fa786153e  failed   4 PASS / 3 FAIL (76.5s)
+passing-prod  6a743ead2abf117fa7861555  passed   7 PASS / 0 FAIL + manifest (81.6s)
+nospeech-prod 6a743f4e2abf117fa7861569  error    safe "No transcript produced" (11.2s)
+long10-prod   6a743f862abf117fa7861570  error    fail-fast 5-minute duration guard (11.0s)
+failing-iter  6a743d3f4e5fa54029d3414d  failed   5 PASS / 2 FAIL (pre-rebuild iteration, 07:52Z)
+
+Browser e2e agent: verified login/onboarding, requirement review + confirm,
+campaign creation, uploader + analyze dispatch in the real browser; its
+analysis runs all errored at transcription due to the Gemini free-tier 429
+quota (see failing-prod notes in docs/demo-runbook.md).
