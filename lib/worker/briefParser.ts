@@ -134,6 +134,10 @@ async function extractRequirements(
   const combined = textByPage
     .map((p) => `[Page ${p.page}]\n${p.text}`)
     .join("\n\n");
+  // LLM candidates are optional: without a key, or when the provider is
+  // unavailable (429/5xx), the version degrades to zero candidates and the
+  // creator enters requirements manually. The brief parse must never hard-fail
+  // on LLM availability.
   if (!combined.trim() || !aiKey) return [];
 
   const base = process.env.AI_BASE_URL ?? "https://api.openai.com/v1";
@@ -151,7 +155,10 @@ async function extractRequirements(
     }),
   });
   if (!resp.ok) {
-    throw new Error(`Brief parse LLM failed (${resp.status}): ${(await resp.text()).slice(0, 300)}`);
+    console.error(
+      `[briefParser] LLM unavailable (${resp.status}) — degrading to zero candidates (manual requirements)`
+    );
+    return [];
   }
   const payload = await resp.json();
   const content = String(payload.choices?.[0]?.message?.content ?? "{}");

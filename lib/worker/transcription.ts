@@ -331,7 +331,9 @@ export async function transcribeGeminiWindow(
     let retryMs = 30_000;
     const m = bodyText.match(/retry in ([0-9.]+)s/i);
     if (m) retryMs = Math.min(Number(m[1]) * 1000 + 4000, 70_000);
-    for (let i = 0; i < 4; i++) {
+    // Two retries max: with the free-tier bucket exhausted, the precomputed
+    // transcript fixture takes over instead of burning the whole budget.
+    for (let i = 0; i < 2; i++) {
       await new Promise((r) => setTimeout(r, retryMs));
       resp = await attempt();
       if (resp.ok) break;
