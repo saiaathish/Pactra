@@ -67,6 +67,7 @@ export async function GET(request: Request, { params }: Params) {
       _id: { $ne: runId },
     })
     .sort({ createdAt: -1 })
+    .limit(50)
     .toArray();
 
   if (!compareToId) {
@@ -152,12 +153,18 @@ export async function GET(request: Request, { params }: Params) {
     videoSha256: run.videoSha256,
   };
 
-  const delta = computeRevisionDelta(
-    oldRunInput,
-    newRunInput,
-    oldResults.map(toDeltaResult),
-    newResults.map(toDeltaResult)
-  );
+  let delta;
+  try {
+    delta = computeRevisionDelta(
+      oldRunInput,
+      newRunInput,
+      oldResults.map(toDeltaResult),
+      newResults.map(toDeltaResult)
+    );
+  } catch (err) {
+    console.error("Revision delta computation failed:", err);
+    return apiError(400, "The compared runs could not be reconciled");
+  }
 
   const requirementMeta: Record<string, { description: string }> = {};
   for (const requirement of requirements) {

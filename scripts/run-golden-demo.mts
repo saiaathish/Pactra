@@ -231,6 +231,7 @@ trailer << /Root 1 0 R /Size 5 >>
   const resultsJson = await resultsRes.json();
   const results = resultsJson.results ?? [];
   const evidence = resultsJson.evidence ?? [];
+  console.log(`TRANSCRIPT_PROVENANCE: ${resultsJson.run?.transcriptProvenance ?? null}`);
   const counts = { passed: 0, failed: 0, uncertain: 0, humanReview: 0, notTestable: 0 };
   const statusMap: Record<string, "passed" | "failed" | "uncertain" | "humanReview" | "notTestable"> = {
     pass: "passed",
