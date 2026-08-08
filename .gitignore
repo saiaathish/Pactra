@@ -49,3 +49,4 @@ firebase-service-account.json
 
 # playwright mcp logs
 .playwright-mcp/
+.gstack/
