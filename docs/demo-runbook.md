@@ -9,11 +9,12 @@ video passes → cryptographically bound approval manifest.
 1. Everything from `docs/setup-firebase-mongodb.md` is live (Firebase, Atlas,
    in-app analysis engine, Vercel).
 2. Two rough cuts exist (2 min each):
-   - **failing.mp4** — 45-second integration, says "guaranteed growth" at
-     ~02:47, no discount code in the description, no URL.
-   - **passing.mp4** — corrected: 45–60s integration after 01:30, says
-     "30-day free trial" and code `SAI20`, discloses sponsorship before the
-     segment, description has the URL + code + disclosure.
+   - **failing.mp4** — sponsor segment starts at 15.7s, lasts 60.0s, and says
+     "guaranteed results" at 33.7s. Expected result: **4 PASS / 3 FAIL**.
+   - **passing.mp4** — corrected: sponsor segment starts at 68.2s, lasts
+     35.9s, removes the forbidden claim, says "30-day free trial" and code
+     `PACTRA20`, and keeps the required description URL. Expected result:
+     **7 PASS / 0 FAIL**.
 3. A realistic sponsor brief PDF with the demo requirements.
 4. Test creator account added as a Firebase test/verified user.
 
@@ -43,22 +44,26 @@ video passes → cryptographically bound approval manifest.
 1. `/campaigns/:id` → upload **failing.mp4** (resumable, shows progress) →
    paste the intended description → **Run preflight**.
 2. `/analysis/:id` — live stage progress (hashing → transcribing → tests).
-3. Results: `5 passed · 3 failed` — click failures:
-   - Integration lasts only 38 seconds (segment 02:14–02:51).
-   - "Guaranteed growth" spoken at 02:47 — transcript evidence + clip.
-   - Description missing `SAI20` and the URL.
+3. Results: `4 passed · 3 failed` — click failures:
+   - Sponsor segment starts at 15.7s, before the allowed window.
+   - Sponsor segment lasts 60.0s, outside the required 35–50s window.
+   - "Guaranteed results" is spoken at 33.7s — transcript evidence + clip.
 4. Generate manifest is refused (run has failures).
 
 ### 2:10–2:40 — Pass + manifest
 1. Upload **passing.mp4** (new version) + corrected description → run.
-2. `8 passed · 1 human review` (the subjective "feels natural" requirement —
-   never auto-passed).
+2. `7 passed · 0 failed` — the same seven requirement IDs now pass.
 3. **Generate approval manifest** → `/analysis/:id/report`:
    - brief SHA-256, video SHA-256, description SHA-256
    - test summary + evidence, `manifestSha256`
    - Downloadable JSON report.
 4. Close: "The exact file Pactra tested is the exact file in the manifest —
    change a single byte and the binding breaks."
+
+The production golden analyses measured 76.5s and 81.6s. For a three-minute
+demo, open the completed runs and state whether each transcript came from
+`LIVE` transcription or the SHA-bound `DEMO RECOVERY FIXTURE`; do not wait for
+both analyses on stage.
 
 ## What to say if asked
 
