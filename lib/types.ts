@@ -200,6 +200,7 @@ export interface AnalysisRunDoc {
   descriptionSnapshot: string;
   descriptionSha256: string;
   engineVersion: string;
+  transcriptProvenance?: "live" | "fixture";
   status: AnalysisRunStatus;
   progressPercent: number;
   currentStage: string | null;

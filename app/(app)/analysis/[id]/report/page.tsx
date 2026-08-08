@@ -37,6 +37,7 @@ export default async function ReportPage({
     videoSha256?: string;
     descriptionSha256?: string;
     tests?: { passed: number; failed: number; uncertain: number; humanReview: number };
+    transcriptProvenance?: "live" | "fixture" | null;
     generatedAt?: string;
   };
 
@@ -59,6 +60,16 @@ export default async function ReportPage({
           <Row
             label="Tests"
             value={`${manifestJson.tests?.passed ?? 0} passed · ${manifestJson.tests?.failed ?? 0} failed · ${manifestJson.tests?.uncertain ?? 0} uncertain · ${manifestJson.tests?.humanReview ?? 0} human review`}
+          />
+          <Row
+            label="Transcript"
+            value={
+              manifestJson.transcriptProvenance === "fixture"
+                ? "DEMO RECOVERY FIXTURE (SHA-bound)"
+                : manifestJson.transcriptProvenance === "live"
+                  ? "LIVE transcription"
+                  : "—"
+            }
           />
           <Row label="Generated" value={manifestJson.generatedAt ?? manifest.createdAt.toISOString()} />
         </dl>

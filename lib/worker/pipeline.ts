@@ -184,9 +184,15 @@ export async function runAnalysisPipeline(runId: ObjectId): Promise<{
 
     // --- transcribing ---------------------------------------------------------
     await setStage(db, runId, 5);
-    const segments = await transcribeAudioFile(audioPath, computedSha256);
+    const { segments, provenance } = await transcribeAudioFile(audioPath, computedSha256);
     const transcript = new Transcript(segments);
     if (segments.length === 0) throw new Error("No transcript produced");
+    // Persist where the transcript came from so results always show it (no
+    // hidden fallback: LIVE vs SHA-bound DEMO RECOVERY FIXTURE).
+    await db.collection(COLLECTIONS.analysisRuns).updateOne(
+      { _id: runId },
+      { $set: { transcriptProvenance: provenance, updatedAt: new Date() } }
+    );
 
     // --- sampling_frames (best-effort; stretch visuals) ----------------------
     await setStage(db, runId, 6);

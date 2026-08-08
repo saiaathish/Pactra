@@ -33,6 +33,7 @@ interface RunView {
   currentStage: string | null;
   summary: { passed: number; failed: number; uncertain: number; humanReview: number };
   errorMessageSafe: string | null;
+  transcriptProvenance?: "live" | "fixture" | null;
 }
 
 interface ResultsPayload {
@@ -178,6 +179,19 @@ export function AnalysisViewer({
             <span className="text-xs text-amber-400">{results.run.summary.uncertain} uncertain</span>
             <span className="text-xs text-zinc-600">·</span>
             <span className="text-xs text-sky-400">{results.run.summary.humanReview} human review</span>
+            {results.run.transcriptProvenance && (
+              <span
+                className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                  results.run.transcriptProvenance === "fixture"
+                    ? "bg-amber-500/10 text-amber-400"
+                    : "bg-emerald-500/10 text-emerald-400"
+                }`}
+              >
+                {results.run.transcriptProvenance === "fixture"
+                  ? "Transcript: DEMO RECOVERY FIXTURE"
+                  : "Transcript: LIVE"}
+              </span>
+            )}
           </div>
 
           <div className="mt-4">

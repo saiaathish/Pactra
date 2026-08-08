@@ -401,24 +401,32 @@ function fixtureFor(videoSha256?: string | null): TranscriptSegment[] | null {
   return TRANSCRIPT_FIXTURES[videoSha256] ?? null;
 }
 
+export type TranscriptProvenance = "live" | "fixture";
+
+export interface TranscriptionResult {
+  segments: TranscriptSegment[];
+  /** Where the transcript actually came from — never hidden. */
+  provenance: TranscriptProvenance;
+}
+
 export async function transcribeAudioFile(
   audioPath: string,
   videoSha256?: string | null
-): Promise<TranscriptSegment[]> {
+): Promise<TranscriptionResult> {
   const apiKey = requireAIKey();
   if (isGemini()) {
     // Digital silence must never become a hallucinated transcript.
     const vol = await meanVolumeDb(audioPath);
-    if (vol !== null && vol < -50) return [];
+    if (vol !== null && vol < -50) return { segments: [], provenance: "live" };
     try {
-      return await transcribeGemini(audioPath, apiKey);
+      return { segments: await transcribeGemini(audioPath, apiKey), provenance: "live" };
     } catch (err) {
       const fixture = fixtureFor(videoSha256);
       if (fixture) {
         console.error(
           `[fixture] live transcription unavailable (${err instanceof Error ? err.message.slice(0, 80) : "provider error"}) — using precomputed transcript for video ${videoSha256}`
         );
-        return fixture;
+        return { segments: fixture, provenance: "fixture" };
       }
       throw err;
     }
@@ -474,5 +482,5 @@ export async function transcribeAudioFile(
       words: [],
     });
   }
-  return segments;
+  return { segments, provenance: "live" };
 }

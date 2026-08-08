@@ -77,6 +77,7 @@ export async function POST(_request: Request, { params }: Params) {
       endSeconds: e.endSeconds,
       storagePath: e.storagePath,
     })),
+    transcriptProvenance: run.transcriptProvenance ?? null,
     generatedAt: new Date().toISOString(),
   };
   const manifestSha256 = sha256Hex(canonicalJson(manifestJson));
