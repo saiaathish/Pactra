@@ -137,10 +137,47 @@ async function extractRequirements(
   // LLM candidates are optional: without a key, or when the provider is
   // unavailable (429/5xx), the version degrades to zero candidates and the
   // creator enters requirements manually. The brief parse must never hard-fail
-  // on LLM availability.
+  // on LLM availability OR malformed LLM output — one retry, then degrade.
+  // Malformed JSON used to throw all the way up and fail the version creation
+  // (observed in production: "Expected ',' or ']' after array element").
   if (!combined.trim() || !aiKey) return [];
 
   const base = process.env.AI_BASE_URL ?? "https://api.openai.com/v1";
+  let parsed: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    parsed = await requestCandidates(base, model, aiKey, combined);
+    if (parsed === null) {
+      console.error(
+        "[briefParser] LLM unavailable — degrading to zero candidates (manual requirements)"
+      );
+      return [];
+    }
+    if (parsed !== undefined) break;
+    console.error(`[briefParser] malformed LLM JSON (attempt ${attempt + 1})`);
+  }
+  if (parsed === undefined) {
+    console.error(
+      "[briefParser] malformed LLM JSON — degrading to zero candidates (manual requirements)"
+    );
+    return [];
+  }
+  const raw = parsed as { requirements?: unknown[] } | null;
+  const candidates = Array.isArray(raw?.requirements) ? raw.requirements : [];
+  return validateRequirements(candidates);
+}
+
+/**
+ * One LLM candidate request. Returns:
+ *  - parsed JSON on success
+ *  - null when the provider is unavailable (429/5xx) — degrade, do not retry
+ *  - undefined when the model returned malformed JSON — caller may retry once
+ */
+async function requestCandidates(
+  base: string,
+  model: string,
+  aiKey: string,
+  combined: string
+): Promise<unknown> {
   const resp = await fetch(`${base}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${aiKey}`, "Content-Type": "application/json" },
@@ -154,24 +191,22 @@ async function extractRequirements(
       temperature: 0.1,
     }),
   });
-  if (!resp.ok) {
-    console.error(
-      `[briefParser] LLM unavailable (${resp.status}) — degrading to zero candidates (manual requirements)`
-    );
-    return [];
-  }
+  if (!resp.ok) return null;
   const payload = await resp.json();
   const content = String(payload.choices?.[0]?.message?.content ?? "{}");
-  let parsed: unknown = null;
   try {
-    parsed = JSON.parse(content);
+    return JSON.parse(content);
   } catch {
     const match = content.match(/\{[\s\S]*\}/);
-    if (match) parsed = JSON.parse(match[0]);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
   }
-  return validateRequirements(
-    (parsed as { requirements?: unknown[] })?.requirements ?? []
-  );
 }
 
 /** Full parse: pages, raw text, SHA-256, candidate requirements. */
