@@ -334,6 +334,12 @@ export async function runAnalysisPipeline(runId: ObjectId): Promise<{
     else if (counts.uncertain > 0 || counts.humanReview > 0) runStatus = "partial";
     else runStatus = "passed";
     await setStage(db, runId, 12, { status: runStatus, summary: counts });
+    // The run doc's own hash (the asset doc already carries it). Revision
+    // delta and any downstream binding read it from the run.
+    await db.collection(COLLECTIONS.analysisRuns).updateOne(
+      { _id: runId },
+      { $set: { videoSha256: computedSha256, updatedAt: new Date() } }
+    );
 
     return {
       analysisRunId: runId.toString(),

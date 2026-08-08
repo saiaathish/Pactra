@@ -18,6 +18,7 @@ import type {
   EvidenceItemDoc,
   RequirementDoc,
   TestResultDoc,
+  VideoAssetDoc,
 } from "@/lib/types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -71,11 +72,26 @@ export async function GET(request: Request, { params }: Params) {
     .toArray();
 
   if (!compareToId) {
+    // Older runs predate the run-doc hash; fall back to the asset's verified
+    // SHA-256 so the picker always shows a real binding.
+    const assetShas = new Map<string, string>();
+    if (candidates.length > 0) {
+      const assets = await db
+        .collection<VideoAssetDoc>(COLLECTIONS.videoAssets)
+        .find({
+          _id: { $in: candidates.map((candidate) => candidate.videoAssetId) },
+          ownerFirebaseUid: uid,
+        })
+        .toArray();
+      for (const asset of assets) {
+        if (asset._id && asset.sha256) assetShas.set(asset._id.toString(), asset.sha256);
+      }
+    }
     return NextResponse.json({
       ready: true,
-      runs: candidates.map(({ _id, videoSha256, summary, createdAt }) => ({
+      runs: candidates.map(({ _id, videoAssetId, videoSha256, summary, createdAt }) => ({
         id: _id?.toString(),
-        videoSha256,
+        videoSha256: videoSha256 || assetShas.get(videoAssetId.toString()) || "",
         summary,
         createdAt: createdAt.toISOString(),
       })),
@@ -140,17 +156,26 @@ export async function GET(request: Request, { params }: Params) {
     evidenceSummaries: summarize(result),
   });
 
+  const [oldAsset, newAsset] = await Promise.all([
+    db
+      .collection<VideoAssetDoc>(COLLECTIONS.videoAssets)
+      .findOne({ _id: olderRun.videoAssetId, ownerFirebaseUid: uid }),
+    db
+      .collection<VideoAssetDoc>(COLLECTIONS.videoAssets)
+      .findOne({ _id: run.videoAssetId, ownerFirebaseUid: uid }),
+  ]);
+
   const oldRunInput: RevisionDeltaRun = {
     id: olderRun._id?.toString() ?? "",
     campaignId: olderRun.campaignId.toString(),
     briefVersionId: olderRun.briefVersionId.toString(),
-    videoSha256: olderRun.videoSha256,
+    videoSha256: olderRun.videoSha256 || oldAsset?.sha256 || "",
   };
   const newRunInput: RevisionDeltaRun = {
     id: run._id?.toString() ?? "",
     campaignId: run.campaignId.toString(),
     briefVersionId: run.briefVersionId.toString(),
-    videoSha256: run.videoSha256,
+    videoSha256: run.videoSha256 || newAsset?.sha256 || "",
   };
 
   let delta;
