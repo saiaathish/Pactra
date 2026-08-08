@@ -105,12 +105,16 @@ export async function POST(_request: Request, { params }: Params) {
     await db.collection<ApprovalManifestDoc>(COLLECTIONS.approvalManifests).insertOne(manifestDoc);
   }
 
-  // Write the JSON report to Firebase Storage (backend-only path).
-  const bucket = getStorageBucket();
-  const reportFile = bucket.file(manifestDoc.reportStoragePath);
-  await reportFile.save(JSON.stringify(manifestJson, null, 2), {
-    contentType: "application/json",
-  });
+  // Write the JSON report to Firebase Storage (backend-only path). Guarded by
+  // the same existence check as the DB insert so a re-POST never rewrites the
+  // stored packet with a different generatedAt/hash than the DB record.
+  if (!existing) {
+    const bucket = getStorageBucket();
+    const reportFile = bucket.file(manifestDoc.reportStoragePath);
+    await reportFile.save(JSON.stringify(manifestJson, null, 2), {
+      contentType: "application/json",
+    });
+  }
 
   return NextResponse.json({
     manifest: {

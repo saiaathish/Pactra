@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { getSessionUser } from "@/lib/firebase/session";
 import { COLLECTIONS, getDb } from "@/lib/mongodb";
 import { getStorageBucket } from "@/lib/firebase/admin";
+import { canonicalJson, sha256Hex } from "@/lib/api-helpers";
 import { Card, CardTitle } from "@/components/ui/card";
 import type { ApprovalManifestDoc } from "@/lib/types";
 
@@ -41,6 +42,11 @@ export default async function ReportPage({
     generatedAt?: string;
   };
 
+  // Runtime integrity check: recompute the canonical SHA-256 over the stored
+  // manifest JSON. Any tampering with a bound field breaks the hash.
+  const manifestVerified =
+    sha256Hex(canonicalJson(manifest.manifestJson)) === manifest.manifestSha256;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
@@ -72,6 +78,15 @@ export default async function ReportPage({
             }
           />
           <Row label="Generated" value={manifestJson.generatedAt ?? manifest.createdAt.toISOString()} />
+          <Row
+            label="Manifest integrity"
+            value={
+              manifestVerified
+                ? "VERIFIED — SHA-256 matches bound content"
+                : "MISMATCH — stored hash does not match manifest content"
+            }
+            valueClass={manifestVerified ? "text-emerald-400" : "text-red-400"}
+          />
         </dl>
         {reportUrl && (
           <a
@@ -93,11 +108,25 @@ export default async function ReportPage({
   );
 }
 
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Row({
+  label,
+  value,
+  mono,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  valueClass?: string;
+}) {
   return (
     <div className="flex items-start justify-between gap-4">
       <dt className="text-zinc-500">{label}</dt>
-      <dd className={mono ? "font-mono text-xs text-zinc-300 break-all text-right" : "text-zinc-300 text-right"}>
+      <dd
+        className={`text-right ${mono ? "font-mono text-xs break-all" : ""} ${
+          valueClass ?? "text-zinc-300"
+        }`}
+      >
         {value}
       </dd>
     </div>
