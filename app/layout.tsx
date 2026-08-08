@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { bodyFont, displayFont, monoFont } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: "Pactra — CI/CD for Sponsored YouTube Videos",
@@ -11,7 +12,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark">
+    <html
+      lang="en"
+      className={`dark ${displayFont.variable} ${bodyFont.variable} ${monoFont.variable}`}
+    >
       <body>{children}</body>
     </html>
   );

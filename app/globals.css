@@ -1,18 +1,56 @@
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------ */
+/* Design tokens                                                       */
+/* ------------------------------------------------------------------ */
+
 @theme {
+  /* --- Existing app tokens (dashboard / sponsors / analysis pages) --- */
   --color-background: #09090b;
   --color-foreground: #fafafa;
   --color-muted: #a1a1aa;
   --color-accent: #6366f1;
   --color-accent-hover: #818cf8;
   --color-border: #27272a;
+
+  /* --- "Elegant Dark Mode" landing tokens --- */
+  --color-canvas: #08080d; /* page background - near-black, whisper of blue */
+  --color-raised: #101018; /* elevated surface (nav / sections) */
+  --color-wave-deep: #453398; /* wave gradient - deep violet-indigo */
+  --color-wave-light: #6c88c3; /* wave gradient - light periwinkle */
+  --color-ink: #f4f4f5; /* primary text */
+  --color-muted-2: #a1a1aa; /* secondary text */
+  --color-hairline: #1f1f2b; /* hairline borders */
+
+  /* --- Landing animation tokens (keyframes defined below) --- */
+  --animate-wave-drift: wave-drift 34s linear infinite;
+  --animate-fade-up: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-dot-pulse: dot-pulse 3.5s ease-in-out infinite;
+}
+
+/* Font utilities: wire the next/font variables (set on <html> by
+   lib/fonts.ts) to Tailwind's font-display / font-body / font-mono
+   utilities. `inline` stops Tailwind from emitting its own --font-*
+   declarations, so each utility resolves straight to the runtime var. */
+@theme inline {
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+/* ------------------------------------------------------------------ */
+/* Base                                                                */
+/* ------------------------------------------------------------------ */
+
+:root {
+  color-scheme: dark;
 }
 
 body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
   font-family:
+    var(--font-body),
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -21,4 +59,80 @@ body {
     "Helvetica Neue",
     Arial,
     sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Indigo-tinted text selection */
+::selection {
+  background-color: var(--color-wave-deep);
+  color: var(--color-ink);
+}
+
+/* Global keyboard focus ring */
+:focus-visible {
+  outline: 2px solid var(--color-wave-light);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Keyframes (canonical definitions; the wave component may also       */
+/* reference them via its own inline <style>). Animate ONLY transform  */
+/* and opacity - GPU-safe.                                             */
+/* ------------------------------------------------------------------ */
+
+/* Seamless horizontal drift. The animated layer must be 200% wide with
+   its content duplicated once, so translateX(-50%) loops cleanly. */
+@keyframes wave-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Soft rise-in used for entrance reveals. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Gentle breathing pulse for the logo dot. */
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(0.9);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion                                                      */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  /* Waves and the logo dot stop moving entirely. */
+  .animate-wave-drift,
+  .animate-dot-pulse {
+    animation: none;
+  }
+
+  /* fade-up content snaps to its fully-visible final state. */
+  .animate-fade-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
