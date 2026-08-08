@@ -71,7 +71,23 @@ export function AnalysisViewer({
   const finished = ["passed", "failed", "partial", "error", "cancelled"].includes(run.status);
 
   useEffect(() => {
-    if (finished) return;
+    async function loadResults() {
+      const res = await fetch(`/api/analysis-runs/${runId}/results`);
+      if (!res.ok) {
+        setError("Analysis finished, but its results could not be loaded.");
+        return;
+      }
+      setResults(await res.json());
+    }
+
+    // Completed runs are the primary demo path. Load their persisted results
+    // immediately instead of waiting for a polling transition that will never
+    // occur after a page refresh or direct link.
+    if (finished) {
+      void loadResults();
+      return;
+    }
+
     const timer = setInterval(async () => {
       const res = await fetch(`/api/analysis-runs/${runId}`);
       if (!res.ok) return;
@@ -79,18 +95,10 @@ export function AnalysisViewer({
       setRun(data.run);
       if (["passed", "failed", "partial", "error", "cancelled"].includes(data.run.status)) {
         clearInterval(timer);
-        loadResults();
       }
     }, 3000);
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, finished]);
-
-  async function loadResults() {
-    const res = await fetch(`/api/analysis-runs/${runId}/results`);
-    if (!res.ok) return;
-    setResults(await res.json());
-  }
 
   async function handleCancel() {
     await fetch(`/api/analysis-runs/${runId}/cancel`, { method: "POST" });
