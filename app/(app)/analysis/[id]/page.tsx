@@ -5,6 +5,7 @@ import { getSessionUser } from "@/lib/firebase/session";
 import { getStorageBucket } from "@/lib/firebase/admin";
 import { COLLECTIONS, getDb } from "@/lib/mongodb";
 import { AnalysisViewer } from "@/components/analysis-viewer";
+import { RevisionDeltaViewer } from "@/components/revision-delta-viewer";
 import type { AnalysisRunDoc, VideoAssetDoc } from "@/lib/types";
 
 export default async function AnalysisPage({
@@ -62,6 +63,8 @@ export default async function AnalysisPage({
           errorMessageSafe: run.errorMessageSafe,
         }}
       />
+
+      <RevisionDeltaViewer runId={id} />
     </div>
   );
 }
