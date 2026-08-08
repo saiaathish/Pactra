@@ -34,9 +34,72 @@ export function isErrorResponse(value: unknown): value is NextResponse {
   return value instanceof NextResponse;
 }
 
-/** Canonical JSON serialization for hashing (sorted keys). */
+/**
+ * Deterministic JSON serialization for hashing.
+ *
+ * Object keys are sorted recursively while array order is preserved. Values
+ * that JSON cannot represent without loss are rejected instead of being
+ * omitted or coerced, which prevents distinct manifests from sharing a hash.
+ */
 export function canonicalJson(value: unknown): string {
-  return JSON.stringify(value, Object.keys(value as object).sort());
+  const ancestors = new WeakSet<object>();
+
+  function serialize(input: unknown): string {
+    if (input === null) return "null";
+
+    switch (typeof input) {
+      case "boolean":
+      case "string":
+        return JSON.stringify(input);
+      case "number":
+        if (!Number.isFinite(input)) {
+          throw new TypeError("canonicalJson cannot serialize non-finite numbers");
+        }
+        return JSON.stringify(input);
+      case "object": {
+        if (ancestors.has(input)) {
+          throw new TypeError("canonicalJson cannot serialize cyclic values");
+        }
+        ancestors.add(input);
+
+        try {
+          if (Array.isArray(input)) {
+            const keys = Object.keys(input);
+            if (
+              keys.length !== input.length ||
+              keys.some((key, index) => key !== String(index))
+            ) {
+              throw new TypeError("canonicalJson cannot serialize sparse or augmented arrays");
+            }
+            if (Object.getOwnPropertySymbols(input).length > 0) {
+              throw new TypeError("canonicalJson cannot serialize symbol-keyed properties");
+            }
+            return `[${input.map(serialize).join(",")}]`;
+          }
+
+          const prototype = Object.getPrototypeOf(input);
+          if (prototype !== Object.prototype && prototype !== null) {
+            throw new TypeError("canonicalJson only supports plain JSON objects");
+          }
+          if (Object.getOwnPropertySymbols(input).length > 0) {
+            throw new TypeError("canonicalJson cannot serialize symbol-keyed properties");
+          }
+
+          const record = input as Record<string, unknown>;
+          return `{${Object.keys(record)
+            .sort()
+            .map((key) => `${JSON.stringify(key)}:${serialize(record[key])}`)
+            .join(",")}}`;
+        } finally {
+          ancestors.delete(input);
+        }
+      }
+      default:
+        throw new TypeError(`canonicalJson cannot serialize ${typeof input}`);
+    }
+  }
+
+  return serialize(value);
 }
 
 export function sha256Hex(input: string): string {
