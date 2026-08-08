@@ -106,6 +106,62 @@ export function buildWindowRanges(durationS: number): WindowRange[] {
 }
 
 /**
+ * Coverage guard: the transcript must cover the audio it claims to verify.
+ * If sound continues after the last transcribed word (e.g. a window was
+ * dropped), testing on that transcript could MISS a violation — a false
+ * PASS. Refuse loudly instead. The caller's fixture fallback keeps known
+ * demo files alive; anything else fails safely.
+ *
+ * Untimed transcripts (prose fallback, no word timestamps) and fully
+ * covered transcripts are skipped. Tail silence is legitimate (videos end
+ * with silence), so only a NON-silent tail after the last word trips it.
+ * A short tolerance absorbs ASR boundary slop (last word ends ~1–2s before
+ * the audible tail); a dropped transcription window leaves 50+s of speech,
+ * so the separation is unambiguous.
+ */
+const TAIL_SILENCE_DB = -50;
+const TAIL_SLICE_EPSILON_S = 0.5;
+const TAIL_TOLERANCE_S = 6;
+
+export async function assertTranscriptCoverage(
+  segments: TranscriptSegment[],
+  audioPath: string,
+  durationS: number | null
+): Promise<void> {
+  if (durationS === null || segments.length === 0) return;
+
+  let lastEnd = 0;
+  for (const seg of segments) {
+    for (const word of seg.words ?? []) {
+      if (word.end > lastEnd) lastEnd = word.end;
+    }
+    if ((seg.end ?? 0) > lastEnd) lastEnd = seg.end ?? 0;
+  }
+  // No usable timestamps (prose fallback) — nothing to verify against.
+  if (lastEnd <= 0) return;
+  if (lastEnd >= durationS) return;
+
+  const tailStart = Math.min(
+    durationS,
+    Math.max(0, lastEnd - TAIL_SLICE_EPSILON_S) + TAIL_TOLERANCE_S
+  );
+  if (tailStart >= durationS) return;
+
+  const tailPath = path.join(path.dirname(audioPath), "coverage-tail.wav");
+  try {
+    await sliceWav(audioPath, tailStart, durationS, tailPath);
+    const volume = await meanVolumeDb(tailPath);
+    if (volume !== null && volume > TAIL_SILENCE_DB) {
+      throw new Error(
+        `Transcript truncated — last word ends at ${lastEnd.toFixed(1)}s but audio continues with sound until ${durationS.toFixed(1)}s; refusing to test an incomplete transcript`
+      );
+    }
+  } finally {
+    await import("node:fs/promises").then((m) => m.rm(tailPath, { force: true }));
+  }
+}
+
+/**
  * Stitches per-window transcripts: each word belongs to the first window
  * whose range contains it (timestamps are clip-relative, so add the window
  * offset); near-duplicate boundary words (same text within 0.4s) are dropped.
@@ -163,6 +219,7 @@ async function transcribeGemini(
   const durationS = await wavDurationSeconds(audioPath);
   if (durationS === null || durationS <= MAX_SINGLE_WINDOW_S) {
     const segs = await transcribeGeminiWindow(base, model, apiKey, audioPath, durationS ?? null);
+    await assertTranscriptCoverage(segs, audioPath, durationS);
     return segs;
   }
 
@@ -189,7 +246,9 @@ async function transcribeGemini(
   // measured accuracy vs deterministic TTS ground truth: mean |err| ~1.3s,
   // worst case ~3s (reported honestly in the demo evidence).
 
-  return stitchWindowResults(results, ranges);
+  const stitched = stitchWindowResults(results, ranges);
+  await assertTranscriptCoverage(stitched, audioPath, durationS);
+  return stitched;
 }
 
 /** Case/punctuation-insensitive text for duplicate detection. */
